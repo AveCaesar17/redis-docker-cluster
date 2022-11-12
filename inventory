@@ -1,0 +1,9 @@
+[all]
+Redis1 ansible_host=192.168.1.17 ansible_user=root
+Redis2 ansible_host=192.168.1.18 ansible_user=root 
+Redis3 ansible_host=192.168.1.19 ansible_user=root 
+[master]
+Redis1
+[slave]
+Redis2
+Redis3

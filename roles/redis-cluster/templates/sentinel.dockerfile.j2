@@ -1,0 +1,5 @@
+FROM redis:alpine
+COPY ./redis-sentinel.conf /etc/redis/redis-sentinel.conf
+EXPOSE {{ port_sentinel }}
+VOLUME {{ dir_sentinel }} ./redis-sentinel
+ENTRYPOINT redis-sentinel /etc/redis/redis-sentinel.conf

@@ -1,0 +1,5 @@
+FROM redis:alpine
+COPY ./redis.conf /etc/redis/redis.conf
+EXPOSE {{ port_redis }}
+VOLUME {{ dir_redis }} ./redis
+ENTRYPOINT redis-server /etc/redis/redis.conf

@@ -1,0 +1,85 @@
+---
+#tasks file for install redis-cluster
+- block: #Block for RedHat
+    - name: install docker
+      yum:
+        name: docker
+        state: latest
+      vars:
+        ansible_become: yes
+  when: ansible_os_family == "RedHat"
+- block: #Block for RedHat
+    - name: install docker
+      apt:
+        name: docker.io
+        state: latest
+        update_cache: yes
+      vars:
+        ansible_become: yes
+  when: ansible_os_family == "Debian"
+- name: Log into private registry and force re-authorization
+  shell:
+    cmd: docker login {{ registry }} -u {{ docker_username }} -p {{ docker_password }}
+  when: login_registry == true
+- name: Creates directory
+  file:
+    path: "{{ item }}"
+    state: directory
+  with_items:
+    - "/home/{{ ansible_user }}/redis"
+    - "/home/{{ ansible_user }}/redis/redis_state"
+    - "/home/{{ ansible_user }}/redis/redis_sentinel"
+- name: copy config file redis slave
+  template: 
+      src: "{{ item }}.j2"
+      dest: "/home/{{ ansible_user }}/redis/{{ item }}"
+  loop:
+    - 'redis-sentinel.conf'
+    - 'redis.conf'
+    - 'redis.dockerfile'
+    - 'sentinel.dockerfile'
+    
+- name: build docker 
+  shell: 
+      cmd: "docker build -t {{ item }} -f /home/{{ ansible_user }}/redis/{{ item }}.dockerfile /home/{{ ansible_user }}/redis "
+  loop: 
+       - "redis"
+       - "sentinel"
+- name: start redis
+  shell:
+      cmd: "touch /home/{{ ansible_user }}/redis/{{ item.name }}.log | docker run \ 
+          -d=true \ 
+          -p {{ item.port }}:{{ item.port }} \ 
+          --volume={{ item.dir_host }}:{{ item.dir_cont }} \  
+          --volume=/home/{{ ansible_user }}/redis/{{ item.name }}.log:{{ logdir }}/{{ item.name }}.log \
+          --volume=/home/{{ ansible_user }}/redis/{{ item.conf }}:/etc/redis/{{ item.conf }} \
+          --net=host \ 
+          --restart=always \ 
+          {{ item.name }}"
+  vars:
+   ansible_become: yes
+  loop:
+      - { name: 'redis' ,
+          port: '{{ port_redis }}' , 
+          dir_host: '/home/{{ ansible_user }}/redis/redis_state' , 
+          dir_cont: '{{ dir_redis }}',
+          conf: 'redis.conf' }
+      - { name: 'sentinel' , 
+          port: '{{ port_sentinel }}' , 
+          dir_host: '/home/{{ ansible_user }}/redis/redis_sentinel' ,
+          dir_cont: '{{ dir_sentinel }}' ,
+          conf: 'redis-sentinel.conf' }
+
+
+# - name: instsall haproxy 
+#   yum: 
+#     name: haproxy
+#     state: latest
+# - name: copy haproxy conf 
+#   template: 
+#     src: "redis-sentinel-slave.conf.j2"
+#     dest: "/etc/redis-sentinel.conf"
+# - name: start haproxy
+#   service:
+#     name: haproxy
+#     httpdstate: started
